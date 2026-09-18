@@ -1,5 +1,7 @@
 package ua.eismont.deathechoes.platform.services;
 
+import java.nio.file.Path;
+
 public interface IPlatformHelper {
 
     /**
@@ -33,4 +35,11 @@ public interface IPlatformHelper {
 
         return isDevelopmentEnvironment() ? "development" : "production";
     }
+
+    /**
+     * Gets the configuration directory for the current platform.
+     *
+     * @return The path to the configuration directory.
+     */
+    Path getConfigDir();
 }

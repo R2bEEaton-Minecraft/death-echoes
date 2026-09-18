@@ -7,26 +7,38 @@ import java.util.List;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import ua.eismont.deathechoes.config.DeathEchoesConfig;
 
 /**
- * A ring buffer of the last {@link #MAX_FRAMES} {@link EchoFrame}s recorded for a player, used to
+ * A ring buffer of recorded {@link EchoFrame}s for a player, used to
  * replay a ghost's final moments after death.
  *
  * <p>Main server thread only; not thread-safe.
  */
 public class EchoRecording {
 
-    public static final int MAX_FRAMES = 200;
+    public static final int DEFAULT_MAX_FRAMES = 200;
+    public static final int MAX_FRAMES = DEFAULT_MAX_FRAMES;
 
-    private final ArrayDeque<EchoFrame> frames = new ArrayDeque<>(MAX_FRAMES);
+    private final int maxFrames;
+    private final ArrayDeque<EchoFrame> frames;
 
     // Cached snapshot for O(1) indexed reads; invalidated on every push since replay reads
     // frame(int) every tick and a fresh ArrayList per push would be wasteful otherwise.
     private List<EchoFrame> cache;
 
+    public EchoRecording() {
+        this(DeathEchoesConfig.get().getMaxFrames());
+    }
+
+    public EchoRecording(int maxFrames) {
+        this.maxFrames = Math.max(20, maxFrames);
+        this.frames = new ArrayDeque<>(this.maxFrames);
+    }
+
     public void push(EchoFrame frame) {
         frames.addLast(frame);
-        while (frames.size() > MAX_FRAMES) {
+        while (frames.size() > maxFrames) {
             frames.removeFirst();
         }
         cache = null;
@@ -34,6 +46,10 @@ public class EchoRecording {
 
     public int size() {
         return frames.size();
+    }
+
+    public int getMaxFrames() {
+        return maxFrames;
     }
 
     public EchoFrame frame(int index) {

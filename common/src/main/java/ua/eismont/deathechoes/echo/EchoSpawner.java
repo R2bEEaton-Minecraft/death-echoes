@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.UUID;
@@ -54,9 +55,7 @@ public final class EchoSpawner {
     }
 
     /**
-     * Walks the recording backwards for the most recent frame that isn't below the world floor
-     * or submerged in lava, falling back to the player's own death position (clamped above the
-     * world floor) if every recorded frame is unsafe.
+     * Walks the recording backwards for the most recent frame that isn't below the world floor\n     * or submerged in lava, falling back to the player's own death position (clamped above the\n     * world floor) if every recorded frame is unsafe.
      */
     private static EchoFrame findSafeFrame(ServerLevel level, EchoRecording recording, Player player) {
         for (int i = recording.size() - 1; i >= 0; i--) {
@@ -73,7 +72,16 @@ public final class EchoSpawner {
             // death position itself is unsafe.
             clampedY += 2;
         }
-        return new EchoFrame(player.getX(), clampedY, player.getZ(), player.getYRot(), player.getXRot(),
-                EchoFrame.Pose.STANDING, player.getMainHandItem().copy());
+        return new EchoFrame(
+                player.getX(), clampedY, player.getZ(), player.getYRot(), player.getXRot(),
+                EchoFrame.Pose.STANDING,
+                player.getMainHandItem().copy(),
+                player.getOffhandItem().copy(),
+                player.getItemBySlot(EquipmentSlot.HEAD).copy(),
+                player.getItemBySlot(EquipmentSlot.CHEST).copy(),
+                player.getItemBySlot(EquipmentSlot.LEGS).copy(),
+                player.getItemBySlot(EquipmentSlot.FEET).copy(),
+                false, 0.0f
+        );
     }
 }

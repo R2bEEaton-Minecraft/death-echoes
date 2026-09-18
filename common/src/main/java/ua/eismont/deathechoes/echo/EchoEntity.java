@@ -17,9 +17,11 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.InterpolationHandler;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
@@ -53,6 +55,20 @@ public class EchoEntity extends Entity {
             SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.BYTE);
     private static final EntityDataAccessor<ItemStack> DATA_MAIN_HAND =
             SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.ITEM_STACK);
+    private static final EntityDataAccessor<ItemStack> DATA_OFF_HAND =
+            SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.ITEM_STACK);
+    private static final EntityDataAccessor<ItemStack> DATA_HELMET =
+            SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.ITEM_STACK);
+    private static final EntityDataAccessor<ItemStack> DATA_CHESTPLATE =
+            SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.ITEM_STACK);
+    private static final EntityDataAccessor<ItemStack> DATA_LEGGINGS =
+            SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.ITEM_STACK);
+    private static final EntityDataAccessor<ItemStack> DATA_BOOTS =
+            SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.ITEM_STACK);
+    private static final EntityDataAccessor<Float> DATA_ATTACK_ANIM =
+            SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.FLOAT);
+
+    private final InterpolationHandler interpolation;
 
     private EchoRecording recording = new EchoRecording();
     private int storedXp;
@@ -72,10 +88,20 @@ public class EchoEntity extends Entity {
     private double lastClientZ;
     private boolean hasLastClientPos;
 
+    // Client-only attack-animation accumulator for smooth swinging
+    private float clientAttackAnim;
+    private float clientAttackAnimOld;
+
     public EchoEntity(EntityType<? extends EchoEntity> type, Level level) {
         super(type, level);
         this.noPhysics = true;
         this.setInvulnerable(true);
+        this.interpolation = level.isClientSide() ? new InterpolationHandler(this, 3) : null;
+    }
+
+    @Override
+    public InterpolationHandler getInterpolation() {
+        return this.interpolation;
     }
 
     /** Assigns the replay data and ownership for a freshly spawned echo. */
@@ -120,6 +146,30 @@ public class EchoEntity extends Entity {
         return (ordinal >= 0 && ordinal < poses.length) ? poses[ordinal] : EchoFrame.Pose.STANDING;
     }
 
+    public ItemStack getSyncedMainHand() {
+        return entityData.get(DATA_MAIN_HAND);
+    }
+
+    public ItemStack getSyncedOffHand() {
+        return entityData.get(DATA_OFF_HAND);
+    }
+
+    public ItemStack getSyncedHelmet() {
+        return entityData.get(DATA_HELMET);
+    }
+
+    public ItemStack getSyncedChestplate() {
+        return entityData.get(DATA_CHESTPLATE);
+    }
+
+    public ItemStack getSyncedLeggings() {
+        return entityData.get(DATA_LEGGINGS);
+    }
+
+    public ItemStack getSyncedBoots() {
+        return entityData.get(DATA_BOOTS);
+    }
+
     /**
      * Interpolated walk-cycle position for the renderer, mirroring {@code
      * WalkAnimationState.position(float)}: {@code (position - speed * (1 - partialTicks))}.
@@ -136,11 +186,22 @@ public class EchoEntity extends Entity {
         return Math.min(Mth.lerp(partialTicks, clientWalkAnimSpeedOld, clientWalkAnimSpeed), 1.0F);
     }
 
+    /**
+     * Interpolated attack swing progress for the renderer.
+     */
+    public float getClientAttackAnim(float partialTicks) {
+        return Mth.lerp(partialTicks, clientAttackAnimOld, clientAttackAnim);
+    }
+
     @Override
     public void tick() {
         super.tick();
         if (level().isClientSide()) {
+            if (this.interpolation != null) {
+                this.interpolation.interpolate();
+            }
             updateClientWalkAnimation();
+            updateClientAttackAnimation();
             tickClientAmbience();
             return;
         }
@@ -163,18 +224,34 @@ public class EchoEntity extends Entity {
             // positions (lava/underground) - the echo is ethereal (invulnerable, fireImmune), so
             // this is accepted, known behavior rather than a bug.
             EchoFrame frame = recording.frame(idx);
-            setPos(frame.x(), frame.y(), frame.z());
-            setYRot(frame.yaw());
-            setXRot(frame.pitch());
+            if (idx == 0 || distanceToSqr(frame.x(), frame.y(), frame.z()) > 16.0) {
+                snapTo(frame.x(), frame.y(), frame.z(), frame.yaw(), frame.pitch());
+            } else {
+                setPos(frame.x(), frame.y(), frame.z());
+                setYRot(frame.yaw());
+                setXRot(frame.pitch());
+            }
             // Single-yaw approximation: body/head rotation both mirror look yaw. Deliberate simplification
             // for the player-model renderer, which needs these synced for a believable pose.
             setYBodyRot(frame.yaw());
             setYHeadRot(frame.yaw());
             entityData.set(DATA_POSE, (byte) frame.pose().ordinal());
-            ItemStack current = entityData.get(DATA_MAIN_HAND);
-            if (!ItemStack.matches(current, frame.mainHand())) {
-                entityData.set(DATA_MAIN_HAND, frame.mainHand());
-            }
+
+            syncItem(DATA_MAIN_HAND, frame.mainHand());
+            syncItem(DATA_OFF_HAND, frame.offHand());
+            syncItem(DATA_HELMET, frame.helmet());
+            syncItem(DATA_CHESTPLATE, frame.chestplate());
+            syncItem(DATA_LEGGINGS, frame.leggings());
+            syncItem(DATA_BOOTS, frame.boots());
+
+            entityData.set(DATA_ATTACK_ANIM, frame.attackAnim());
+        }
+    }
+
+    private void syncItem(EntityDataAccessor<ItemStack> accessor, ItemStack stack) {
+        ItemStack current = entityData.get(accessor);
+        if (!ItemStack.matches(current, stack)) {
+            entityData.set(accessor, stack);
         }
     }
 
@@ -197,6 +274,11 @@ public class EchoEntity extends Entity {
         clientWalkAnimSpeedOld = clientWalkAnimSpeed;
         clientWalkAnimSpeed = clientWalkAnimSpeed + (targetSpeed - clientWalkAnimSpeed) * 0.4F;
         clientWalkAnimPos += clientWalkAnimSpeed;
+    }
+
+    private void updateClientAttackAnimation() {
+        clientAttackAnimOld = clientAttackAnim;
+        clientAttackAnim = entityData.get(DATA_ATTACK_ANIM);
     }
 
     /**
@@ -277,12 +359,23 @@ public class EchoEntity extends Entity {
         builder.define(DATA_OWNER_NAME, "");
         builder.define(DATA_POSE, (byte) EchoFrame.Pose.STANDING.ordinal());
         builder.define(DATA_MAIN_HAND, ItemStack.EMPTY);
+        builder.define(DATA_OFF_HAND, ItemStack.EMPTY);
+        builder.define(DATA_HELMET, ItemStack.EMPTY);
+        builder.define(DATA_CHESTPLATE, ItemStack.EMPTY);
+        builder.define(DATA_LEGGINGS, ItemStack.EMPTY);
+        builder.define(DATA_BOOTS, ItemStack.EMPTY);
+        builder.define(DATA_ATTACK_ANIM, 0.0f);
     }
 
     @Override
     public boolean isPickable() {
         // Needed so a right-click interaction (collecting stored xp) can target it.
         return true;
+    }
+
+    @Override
+    public PushReaction getPistonPushReaction() {
+        return PushReaction.IGNORE;
     }
 
     @Override

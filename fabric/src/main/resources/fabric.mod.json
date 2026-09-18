@@ -20,9 +20,13 @@
         "fabric-gametest": [
             "ua.eismont.deathechoes.gametest.EchoRecordingGameTest",
             "ua.eismont.deathechoes.gametest.EchoTrackerGameTest",
-            "ua.eismont.deathechoes.gametest.EchoEntityGameTest"
+            "ua.eismont.deathechoes.gametest.EchoEntityGameTest",
+            "ua.eismont.deathechoes.gametest.DeathMessageObfuscatorGameTest"
         ]
     },
+    "mixins": [
+        "deathechoes.mixins.json"
+    ],
     "depends": {
         "fabricloader": ">=${fabric_loader_version}",
         "fabric-api": "*",
@@ -30,4 +34,3 @@
         "java": ">=${java_version}"
     }
 }
-  

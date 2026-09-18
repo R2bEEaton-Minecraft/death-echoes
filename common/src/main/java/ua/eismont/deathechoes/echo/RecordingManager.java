@@ -2,6 +2,7 @@ package ua.eismont.deathechoes.echo;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import java.util.Map;
 import java.util.UUID;
@@ -27,7 +28,19 @@ public final class RecordingManager {
             : p.isSprinting() ? EchoFrame.Pose.SPRINTING : EchoFrame.Pose.STANDING;
         // defensive copy is load-bearing: frame must never hold a live inventory reference
         RECORDINGS.computeIfAbsent(p.getUUID(), u -> new EchoRecording())
-            .push(new EchoFrame(p.getX(), p.getY(), p.getZ(), p.getYRot(), p.getXRot(), pose, p.getMainHandItem().copy()));
+            .push(new EchoFrame(
+                    p.getX(), p.getY(), p.getZ(),
+                    p.getYRot(), p.getXRot(),
+                    pose,
+                    p.getMainHandItem().copy(),
+                    p.getOffhandItem().copy(),
+                    p.getItemBySlot(EquipmentSlot.HEAD).copy(),
+                    p.getItemBySlot(EquipmentSlot.CHEST).copy(),
+                    p.getItemBySlot(EquipmentSlot.LEGS).copy(),
+                    p.getItemBySlot(EquipmentSlot.FEET).copy(),
+                    p.swinging,
+                    p.getAttackAnim(1.0f)
+            ));
     }
 
     public static EchoRecording recordingFor(UUID uuid) {
