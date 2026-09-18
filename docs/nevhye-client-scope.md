@@ -44,10 +44,21 @@
 - The mod limits each player to three echoes.
 - Echoes remain safe from lava/void placement and work across dimensions.
 
+## Private implementation reference
+
+Use `F:\oaatef` as the internal reference implementation for the replay work. Its ghost system already contains relevant, tested approaches that can inform this project:
+
+- `src/main/java/cc/spea/oaatef/ghost/PlayerFrame.java` — captures player position, rotation, pose, swing state, armor, and held-item data per frame.
+- `src/main/java/cc/spea/oaatef/ghost/GhostManager.java` and `GhostNetworking.java` — recording/playback lifecycle, serialized recordings, and server-to-client ghost update payloads.
+- `src/client/java/cc/spea/oaatef/ghost/GhostPlayerEntity.java` and `GhostClientManager.java` — client-side ghost state and replay application.
+- `src/client/java/cc/spea/oaatef/mixin/client/AvatarRendererMixin.java` — render-time interpolation for movement, walk animation, and attack progress.
+- `src/client/java/cc/spea/oaatef/mixin/client/EquipmentLayerRendererMixin.java` and `PlayerItemInHandLayerMixin.java` — ghost armor and held-item rendering, including transparency handling.
+
+Adapt the ideas and code selectively to DeathEchoes’ architecture. Do not assume the two projects share mappings, entity/render APIs, or a compatible Minecraft target without first reconciling their versions.
+
 ## Open items to confirm before implementation
 
 - Whether “1.21.11” refers to the exact Minecraft release requested; upstream’s published Fabric build is for 26.1.2+.
 - Whether obfuscated death messages should affect every server death message or only messages concerning specific players/items.
 - Desired configuration scope: server-wide default only, or per-player customization.
 - Whether any other mods alter death messages or player rendering in the client’s modpack; these could affect compatibility testing.
-
