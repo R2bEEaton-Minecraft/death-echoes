@@ -45,7 +45,7 @@ public class EchoTracker extends SavedData {
             .xmap(EchoTracker::fromEntries, EchoTracker::toEntries);
 
     public static final SavedDataType<EchoTracker> TYPE =
-            new SavedDataType<>(ID, EchoTracker::new, CODEC, DataFixTypes.LEVEL);
+            new SavedDataType<>(ID.toString(), EchoTracker::new, CODEC, DataFixTypes.LEVEL);
 
     private final Map<UUID, List<UUID>> echoesByOwner;
 

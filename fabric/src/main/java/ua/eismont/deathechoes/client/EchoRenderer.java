@@ -11,15 +11,15 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.PlayerSkinRenderCache;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.state.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.phys.Vec3;
 import ua.eismont.deathechoes.echo.EchoEntity;
@@ -164,8 +164,8 @@ public class EchoRenderer extends EntityRenderer<EchoEntity, EchoRenderer.EchoRe
         // translucent white-ish model at light level 0 is nearly invisible, which would defeat
         // the "occasional glimpse in the dark" ghost aesthetic entirely.
         int light = state.lightCoords;
-        if (LightCoordsUtil.block(light) < MIN_BLOCK_LIGHT) {
-            light = LightCoordsUtil.withBlock(light, MIN_BLOCK_LIGHT);
+        if (LightTexture.block(light) < MIN_BLOCK_LIGHT) {
+            light = LightTexture.pack(MIN_BLOCK_LIGHT, LightTexture.sky(light));
         }
 
         submitNodeCollector.submitModel(

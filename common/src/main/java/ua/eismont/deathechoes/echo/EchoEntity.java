@@ -240,7 +240,7 @@ public class EchoEntity extends Entity {
     }
 
     @Override
-    public InteractionResult interact(Player player, InteractionHand hand, Vec3 hitVec) {
+    public InteractionResult interact(Player player, InteractionHand hand) {
         if (isRemoved()) {
             // Guards against XP duplication from duplicate interact packets landing in the same
             // tick: the first one discards the echo, so any follow-up must be a no-op.
@@ -261,6 +261,15 @@ public class EchoEntity extends Entity {
         }
         discard();
         return InteractionResult.CONSUME;
+    }
+
+    @Override
+    public InteractionResult interactAt(Player player, Vec3 hitVec, InteractionHand hand) {
+        return interact(player, hand);
+    }
+
+    public InteractionResult interact(Player player, InteractionHand hand, Vec3 hitVec) {
+        return interact(player, hand);
     }
 
     @Override
