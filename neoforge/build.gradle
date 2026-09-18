@@ -41,6 +41,13 @@ neoForge {
     }
 }
 
+// Since Fabric is the primary client for this project, skip NeoForge client runs unless explicitly enabled
+tasks.matching { it.name in ['runClient', 'runServer'] }.configureEach {
+    onlyIf {
+        project.hasProperty('runNeoForge')
+    }
+}
+
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 // Implement mcgradleconventions loader attribute
