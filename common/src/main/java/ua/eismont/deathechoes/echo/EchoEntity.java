@@ -67,6 +67,8 @@ public class EchoEntity extends Entity {
             SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.ITEM_STACK);
     private static final EntityDataAccessor<Float> DATA_ATTACK_ANIM =
             SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Integer> DATA_DEATH_TIME =
+            SynchedEntityData.defineId(EchoEntity.class, EntityDataSerializers.INT);
 
     private final InterpolationHandler interpolation;
 
@@ -91,6 +93,10 @@ public class EchoEntity extends Entity {
     // Client-only attack-animation accumulator for smooth swinging
     private float clientAttackAnim;
     private float clientAttackAnimOld;
+
+    // Client-only death-animation accumulator for smooth collapsing
+    private float clientDeathTime;
+    private float clientDeathTimeOld;
 
     public EchoEntity(EntityType<? extends EchoEntity> type, Level level) {
         super(type, level);
@@ -170,6 +176,10 @@ public class EchoEntity extends Entity {
         return entityData.get(DATA_BOOTS);
     }
 
+    public int getSyncedDeathTime() {
+        return entityData.get(DATA_DEATH_TIME);
+    }
+
     /**
      * Interpolated walk-cycle position for the renderer, mirroring {@code
      * WalkAnimationState.position(float)}: {@code (position - speed * (1 - partialTicks))}.
@@ -193,6 +203,13 @@ public class EchoEntity extends Entity {
         return Mth.lerp(partialTicks, clientAttackAnimOld, clientAttackAnim);
     }
 
+    /**
+     * Interpolated death time progress for the renderer.
+     */
+    public float getClientDeathTime(float partialTicks) {
+        return Mth.lerp(partialTicks, clientDeathTimeOld, clientDeathTime);
+    }
+
     @Override
     public void tick() {
         super.tick();
@@ -202,6 +219,7 @@ public class EchoEntity extends Entity {
             }
             updateClientWalkAnimation();
             updateClientAttackAnimation();
+            updateClientDeathAnimation();
             tickClientAmbience();
             return;
         }
@@ -245,6 +263,19 @@ public class EchoEntity extends Entity {
             syncItem(DATA_BOOTS, frame.boots());
 
             entityData.set(DATA_ATTACK_ANIM, frame.attackAnim());
+            entityData.set(DATA_DEATH_TIME, 0);
+        } else {
+            // Death sequence during pause
+            int deathProgress = idx - recording.size(); // 0 to PAUSE_TICKS - 1
+            int deathTime = Math.min(deathProgress + 1, 20);
+            entityData.set(DATA_DEATH_TIME, deathTime);
+            entityData.set(DATA_ATTACK_ANIM, 0.0f);
+
+            if (deathProgress == 0) {
+                level().playSound(null, blockPosition(), SoundEvents.PLAYER_DEATH, SoundSource.PLAYERS, 0.7f, 1.0f);
+            } else if (deathProgress == 19 && level() instanceof ServerLevel serverLevel) {
+                serverLevel.sendParticles(ParticleTypes.POOF, getX(), getY() + 0.2, getZ(), 10, 0.2, 0.2, 0.2, 0.02);
+            }
         }
     }
 
@@ -263,6 +294,14 @@ public class EchoEntity extends Entity {
      * limb swing matches vanilla's walk animation feel instead of inventing new constants.
      */
     private void updateClientWalkAnimation() {
+        if (getSyncedDeathTime() > 0) {
+            clientWalkAnimSpeedOld = 0.0f;
+            clientWalkAnimSpeed = 0.0f;
+            lastClientX = getX();
+            lastClientZ = getZ();
+            return;
+        }
+
         double dx = hasLastClientPos ? getX() - lastClientX : 0.0;
         double dz = hasLastClientPos ? getZ() - lastClientZ : 0.0;
         lastClientX = getX();
@@ -276,17 +315,37 @@ public class EchoEntity extends Entity {
         clientWalkAnimPos += clientWalkAnimSpeed;
     }
 
+    /**
+     * Updates attack animation accumulator for smooth swinging on client.
+     */
     private void updateClientAttackAnimation() {
+        if (getSyncedDeathTime() > 0) {
+            clientAttackAnimOld = 0.0f;
+            clientAttackAnim = 0.0f;
+            return;
+        }
+
         clientAttackAnimOld = clientAttackAnim;
         clientAttackAnim = entityData.get(DATA_ATTACK_ANIM);
     }
 
     /**
-     * Client-only ambience: occasional drifting soul particles, plus a rare eerie ambient sound
-     * when a local player is nearby. Deliberately kept in common (not the per-loader renderer)
-     * since {@link Level#addParticle}, {@link Level#playLocalSound} and {@link Level#getNearestPlayer}
-     * are all common-side APIs - no client package dependency needed, so both loaders get this for
-     * free without duplicating renderer tick hooks.
+     * Updates death animation accumulator for smooth collapsing on client.
+     */
+    private void updateClientDeathAnimation() {
+        int synced = getSyncedDeathTime();
+        if (synced == 0) {
+            clientDeathTimeOld = 0.0f;
+            clientDeathTime = 0.0f;
+        } else {
+            clientDeathTimeOld = clientDeathTime;
+            clientDeathTime = (float) synced;
+        }
+    }
+
+    /**
+     * Ambient particles and sounds (client-side only): emits subtle soul particles from the ghost
+     * and occasionally plays a sculk sound if a player is nearby.
      */
     private void tickClientAmbience() {
         RandomSource random = getRandom();
@@ -323,9 +382,8 @@ public class EchoEntity extends Entity {
 
     @Override
     public InteractionResult interact(Player player, InteractionHand hand) {
-        if (isRemoved()) {
-            // Guards against XP duplication from duplicate interact packets landing in the same
-            // tick: the first one discards the echo, so any follow-up must be a no-op.
+        if (isRemoved() || hand != InteractionHand.MAIN_HAND) {
+            // The first interaction discards the echo, so any duplicate packet must be a no-op.
             return InteractionResult.PASS;
         }
         if (level().isClientSide()) {
@@ -365,6 +423,7 @@ public class EchoEntity extends Entity {
         builder.define(DATA_LEGGINGS, ItemStack.EMPTY);
         builder.define(DATA_BOOTS, ItemStack.EMPTY);
         builder.define(DATA_ATTACK_ANIM, 0.0f);
+        builder.define(DATA_DEATH_TIME, 0);
     }
 
     @Override

@@ -94,6 +94,7 @@ public class EchoRenderer extends EntityRenderer<EchoEntity, EchoRenderer.EchoRe
         state.walkAnimationPos = entity.getClientWalkAnimationPos(partialTicks);
         state.walkAnimationSpeed = entity.getClientWalkAnimationSpeed(partialTicks);
         state.isCrouching = entity.getSyncedPose() == EchoFrame.Pose.SNEAKING;
+        state.deathTime = entity.getClientDeathTime(partialTicks);
 
         state.attackTime = entity.getClientAttackAnim(partialTicks);
         state.attackArm = HumanoidArm.RIGHT;
