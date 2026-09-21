@@ -1,5 +1,6 @@
 package ua.eismont.deathechoes.chat;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
@@ -20,7 +21,7 @@ public final class DeathMessageObfuscator {
             return null;
         }
         DeathEchoesConfig config = DeathEchoesConfig.get();
-        if (!config.obfuscateDeathMessages) {
+        if (!config.obfuscateDeathMessages && !config.colorDeathMessagePlayersDarkPurple) {
             return original;
         }
 
@@ -37,23 +38,25 @@ public final class DeathMessageObfuscator {
             for (int i = 0; i < args.length; i++) {
                 Object arg = args[i];
                 if (arg instanceof Component comp) {
-                    boolean shouldObfuscate = false;
-                    if (i == 0 && victim instanceof Player) {
-                        shouldObfuscate = true;
-                    } else if (isPlayer(comp, victim)) {
-                        shouldObfuscate = true;
-                    } else if (config.obfuscateWeaponNames && isWeapon(comp, key, i)) {
-                        shouldObfuscate = true;
-                    } else if (config.obfuscateMobNames && i > 0 && !isWeapon(comp, key, i)) {
-                        shouldObfuscate = true;
+                    boolean isPlayerArg = (i == 0 && victim instanceof Player) || isPlayer(comp, victim);
+
+                    Component transformed = comp;
+                    if (isPlayerArg && config.colorDeathMessagePlayersDarkPurple) {
+                        transformed = colorDarkPurple(transformed);
+                        modified = true;
                     }
 
+                    boolean shouldObfuscate = config.obfuscateDeathMessages && (
+                            isPlayerArg
+                                    || (config.obfuscateWeaponNames && isWeapon(comp, key, i))
+                                    || (config.obfuscateMobNames && i > 0 && !isWeapon(comp, key, i))
+                    );
                     if (shouldObfuscate) {
-                        newArgs[i] = obfuscate(comp);
+                        transformed = obfuscate(transformed);
                         modified = true;
-                    } else {
-                        newArgs[i] = arg;
                     }
+
+                    newArgs[i] = transformed;
                 } else {
                     newArgs[i] = arg;
                 }
@@ -80,6 +83,17 @@ public final class DeathMessageObfuscator {
         mutable.setStyle(component.getStyle().withObfuscated(true));
         for (Component sibling : component.getSiblings()) {
             mutable.append(obfuscate(sibling));
+        }
+        return mutable;
+    }
+
+    /** Recolors {@code component} (and its siblings) to dark_purple, overriding any existing color. */
+    public static Component colorDarkPurple(Component component) {
+        if (component == null) return null;
+        MutableComponent mutable = MutableComponent.create(component.getContents());
+        mutable.setStyle(component.getStyle().withColor(ChatFormatting.DARK_PURPLE));
+        for (Component sibling : component.getSiblings()) {
+            mutable.append(colorDarkPurple(sibling));
         }
         return mutable;
     }

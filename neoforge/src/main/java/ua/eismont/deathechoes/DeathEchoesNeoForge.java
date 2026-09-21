@@ -10,12 +10,14 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import ua.eismont.deathechoes.client.EchoClientRenderers;
+import ua.eismont.deathechoes.command.DeathEchoesCommand;
 import ua.eismont.deathechoes.echo.EchoEntity;
 import ua.eismont.deathechoes.echo.EchoSpawner;
 import ua.eismont.deathechoes.echo.ModEntities;
@@ -58,6 +60,8 @@ public class DeathEchoesNeoForge {
                 EchoSpawner.onPlayerDeath(player);
             }
         });
+        NeoForge.EVENT_BUS.addListener((RegisterCommandsEvent event) ->
+            DeathEchoesCommand.register(event.getDispatcher()));
 
         // Renderer registration touches client-only Minecraft classes (EntityRenderer, PlayerModel,
         // etc.) that don't exist on a dedicated server's classpath. Guarding by Dist.CLIENT and

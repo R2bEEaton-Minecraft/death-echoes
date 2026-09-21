@@ -41,13 +41,15 @@ public class DeathMessageObfuscatorGameTest {
             helper.fail("expected non-null obfuscated message");
         }
 
-        // Test with obfuscation disabled
+        // Test with obfuscation and coloring both disabled
         DeathEchoesConfig.get().obfuscateDeathMessages = false;
+        DeathEchoesConfig.get().colorDeathMessagePlayersDarkPurple = false;
         Component untouched = DeathMessageObfuscator.obfuscateDeathMessage(original, victim);
         if (untouched != original) {
             helper.fail("expected untouched component when config is disabled");
         }
         DeathEchoesConfig.get().obfuscateDeathMessages = true;
+        DeathEchoesConfig.get().colorDeathMessagePlayersDarkPurple = true;
 
         helper.succeed();
     }

@@ -34,6 +34,12 @@ public class DeathEchoesConfig {
      */
     public boolean obfuscateMobNames = false;
 
+    /**
+     * Whether player names in death messages should be recolored to dark_purple, overriding team
+     * colors, so teams can't be identified from death messages (default true).
+     */
+    public boolean colorDeathMessagePlayersDarkPurple = true;
+
     public static DeathEchoesConfig get() {
         if (INSTANCE == null) {
             load();

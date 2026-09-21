@@ -3,7 +3,6 @@ package ua.eismont.deathechoes.echo;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.UUIDUtil;
-import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -30,7 +29,9 @@ public class EchoTracker extends SavedData {
 
     public static final int MAX_ECHOES = 3;
 
-    private static final Identifier ID = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "tracker");
+    // Plain string, not a namespaced Identifier: DimensionDataStorage uses this verbatim as a
+    // filename (id + ".dat"), and a ":" in the id is an illegal filename character on Windows.
+    private static final String ID = Constants.MOD_ID + "_tracker";
 
     /** Codec for a single owner's entry: their UUID plus their ordered (oldest-first) echo UUIDs. */
     private record OwnerEntry(UUID owner, List<UUID> echoes) {
@@ -45,7 +46,7 @@ public class EchoTracker extends SavedData {
             .xmap(EchoTracker::fromEntries, EchoTracker::toEntries);
 
     public static final SavedDataType<EchoTracker> TYPE =
-            new SavedDataType<>(ID.toString(), EchoTracker::new, CODEC, DataFixTypes.LEVEL);
+            new SavedDataType<>(ID, EchoTracker::new, CODEC, DataFixTypes.LEVEL);
 
     private final Map<UUID, List<UUID>> echoesByOwner;
 
@@ -89,6 +90,23 @@ public class EchoTracker extends SavedData {
             if (echoes.isEmpty()) {
                 echoesByOwner.remove(owner);
             }
+            setDirty();
+        }
+    }
+
+    /** Returns a flattened, order-unspecified snapshot of every tracked echo UUID across all owners. */
+    public List<UUID> allEchoes() {
+        List<UUID> all = new ArrayList<>();
+        for (List<UUID> echoes : echoesByOwner.values()) {
+            all.addAll(echoes);
+        }
+        return all;
+    }
+
+    /** Untracks every owner's echoes. Callers are responsible for discarding the actual entities. */
+    public void clearAll() {
+        if (!echoesByOwner.isEmpty()) {
+            echoesByOwner.clear();
             setDirty();
         }
     }

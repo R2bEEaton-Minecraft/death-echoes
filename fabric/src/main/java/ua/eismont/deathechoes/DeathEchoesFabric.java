@@ -1,6 +1,7 @@
 package ua.eismont.deathechoes;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -9,6 +10,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import ua.eismont.deathechoes.command.DeathEchoesCommand;
 import ua.eismont.deathechoes.echo.EchoEntity;
 import ua.eismont.deathechoes.echo.EchoSpawner;
 import ua.eismont.deathechoes.echo.ModEntities;
@@ -37,5 +39,7 @@ public class DeathEchoesFabric implements ModInitializer {
                 EchoSpawner.onPlayerDeath(player);
             }
         });
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+            DeathEchoesCommand.register(dispatcher));
     }
 }
